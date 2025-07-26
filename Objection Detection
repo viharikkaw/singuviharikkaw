@@ -1,0 +1,124 @@
+index.html: 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Real-Time Object Detection</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>🎯 Object Detection and Tracking</h1>
+  <div class="video-container">
+    <video id="webcam" autoplay playsinline muted width="640" height="480"></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
+
+
+styles.css:
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #1e1e2f;
+  color: #fff;
+  text-align: center;
+  margin: 0;
+  padding: 20px;
+}
+
+.video-container {
+  position: relative;
+  display: inline-block;
+}
+
+canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+
+
+
+#script.js:
+
+const video = document.getElementById('webcam');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let model;
+let trackedObjects = [];
+let nextId = 1;
+
+// Naive tracker: match object by closeness
+function trackObjects(detections) {
+  const newTracked = [];
+
+  detections.forEach(det => {
+    let matched = false;
+
+    for (let obj of trackedObjects) {
+      const dist = Math.hypot(obj.x - det.bbox[0], obj.y - det.bbox[1]);
+      if (dist < 50) {  // Threshold distance
+        newTracked.push({ ...det, id: obj.id, x: det.bbox[0], y: det.bbox[1] });
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      newTracked.push({ ...det, id: nextId++, x: det.bbox[0], y: det.bbox[1] });
+    }
+  });
+
+  trackedObjects = newTracked;
+}
+
+async function setupCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  video.srcObject = stream;
+  return new Promise(resolve => {
+    video.onloadedmetadata = () => resolve(video);
+  });
+}
+
+async function detectFrame() {
+  const predictions = await model.detect(video);
+  trackObjects(predictions);
+  draw(predictions);
+  requestAnimationFrame(detectFrame);
+}
+
+function draw(detections) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  trackedObjects.forEach(obj => {
+    const [x, y, width, height] = obj.bbox;
+    ctx.beginPath();
+    ctx.rect(x, y, width, height);
+    ctx.strokeStyle = "#00FF00";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "#00FF00";
+    ctx.font = "16px Arial";
+    ctx.fillText(`${obj.class} [ID: ${obj.id}]`, x, y > 10 ? y - 5 : 10);
+  });
+}
+
+async function main() {
+  await setupCamera();
+  video.play();
+  model = await cocoSsd.load();
+  detectFrame();
+}
+
+main();
