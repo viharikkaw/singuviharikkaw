@@ -1,0 +1,133 @@
+index.html:
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FAQ Chatbot</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="chat-container">
+    <h1>FAQ Chatbot</h1>
+    <div class="chat-box" id="chat-box"></div>
+    <div class="input-area">
+      <input type="text" id="user-input" placeholder="Ask your question..." />
+      <button onclick="handleUserInput()">Send</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/natural/0.6.3/natural.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
+
+
+  styles.css:
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.chat-container {
+  width: 400px;
+  background-color: white;
+  box-shadow: 0 0 10px rgba(0,0,0,0.2);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+}
+
+.chat-box {
+  height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  background-color: #fafafa;
+}
+
+.input-area {
+  display: flex;
+  gap: 10px;
+}
+
+input[type="text"] {
+  flex: 1;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+
+
+script.js:
+
+// Sample FAQs
+const faqs = [
+  { question: "What is your return policy?", answer: "Our return policy allows returns within 30 days of purchase." },
+  { question: "How do I track my order?", answer: "You can track your order using the tracking link sent to your email." },
+  { question: "Do you offer international shipping?", answer: "Yes, we ship to most countries worldwide." },
+  { question: "How can I contact customer service?", answer: "You can reach our support team via the Contact Us page." },
+  { question: "What payment methods do you accept?", answer: "We accept Visa, MasterCard, PayPal, and UPI." }
+];
+
+const TfIdf = natural.TfIdf;
+const tfidf = new TfIdf();
+
+// Add FAQ questions to TF-IDF
+faqs.forEach(faq => tfidf.addDocument(faq.question.toLowerCase()));
+
+function handleUserInput() {
+  const input = document.getElementById("user-input").value.trim();
+  if (!input) return;
+
+  addMessage("You", input);
+  const bestMatchIndex = getBestMatchingFAQ(input.toLowerCase());
+  const answer = bestMatchIndex !== -1 ? faqs[bestMatchIndex].answer : "Sorry, I couldn't find a relevant answer.";
+
+  addMessage("Bot", answer);
+  document.getElementById("user-input").value = "";
+}
+
+function getBestMatchingFAQ(userInput) {
+  let maxScore = 0;
+  let bestIndex = -1;
+
+  tfidf.tfidfs(userInput, (i, measure) => {
+    if (measure > maxScore) {
+      maxScore = measure;
+      bestIndex = i;
+    }
+  });
+
+  return bestIndex;
+}
+
+function addMessage(sender, text) {
+  const chatBox = document.getElementById("chat-box");
+  const message = document.createElement("div");
+  message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+  chatBox.appendChild(message);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
