@@ -1,0 +1,116 @@
+index.html: 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Music Generator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>🎵 AI Music Generator</h1>
+    <button onclick="generateMusic()">Generate Music</button>
+    <button onclick="saveAsMIDI()">Download as MIDI</button>
+    <p id="status">Click to generate music...</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@magenta/music@1.23.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/midiwriter-js@2.1.1/dist/MidiWriter.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
+
+
+styles.css:
+
+body {
+  font-family: Arial, sans-serif;
+  background: #1e1e2f;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.container {
+  text-align: center;
+  background: #2c2c3e;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+button {
+  margin: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  background-color: #00bfa6;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #00a38c;
+}
+
+
+
+script.js:
+
+const player = new mm.Player();
+const rnn = new mm.MusicRNN(
+  'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/basic_rnn'
+);
+
+rnn.initialize();
+
+const seed = {
+  notes: [
+    { pitch: 60, startTime: 0, endTime: 0.5 },
+    { pitch: 62, startTime: 0.5, endTime: 1 },
+    { pitch: 64, startTime: 1, endTime: 1.5 },
+  ],
+  totalTime: 1.5,
+};
+
+let generatedSequence;
+
+async function generateMusic() {
+  document.getElementById('status').innerText = 'Generating...';
+  
+  const rnnSteps = 40;
+  const rnnTemperature = 1.1;
+
+  const result = await rnn.continueSequence(seed, rnnSteps, rnnTemperature);
+  generatedSequence = result;
+
+  document.getElementById('status').innerText = 'Playing Generated Music...';
+  player.start(generatedSequence);
+}
+
+function saveAsMIDI() {
+  if (!generatedSequence) return alert("Generate music first!");
+
+  const MidiWriter = window.MidiWriter;
+  const track = new MidiWriter.Track();
+
+  generatedSequence.notes.forEach(n => {
+    const pitch = n.pitch;
+    const duration = 'T' + Math.round((n.endTime - n.startTime) * 128);
+    track.addEvent(new MidiWriter.NoteEvent({ pitch: [pitch], duration }));
+  });
+
+  const write = new MidiWriter.Writer([track]);
+  const blob = new Blob([write.buildFile()], { type: 'audio/midi' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'generated_music.mid';
+  a.click();
+}
